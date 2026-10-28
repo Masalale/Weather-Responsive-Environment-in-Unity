@@ -57,7 +57,7 @@ namespace WeatherApp
 
                 if (request.result != UnityWebRequest.Result.Success)
                 {
-                    onDone(null, "Request failed (" + request.responseCode + ").");
+                    onDone(null, Explain(request));
                     yield break;
                 }
 
@@ -71,6 +71,26 @@ namespace WeatherApp
 
                 onDone(snapshot, null);
             }
+        }
+
+        private static string Explain(UnityWebRequest request)
+        {
+            switch (request.responseCode)
+            {
+                case 401: return "Invalid API key (401).";
+                case 404: return "Location not found (404).";
+                case 429: return "Too many requests (429). Try again shortly.";
+                case 500:
+                case 502:
+                case 503: return "The weather service is down. Try again later.";
+            }
+
+            if (request.result == UnityWebRequest.Result.ConnectionError)
+                return string.IsNullOrEmpty(request.error)
+                    ? "No internet connection."
+                    : "No internet connection. (" + request.error + ")";
+
+            return "Request failed (" + request.responseCode + ").";
         }
 
         [Serializable]
