@@ -18,8 +18,10 @@ namespace WeatherApp
             provider = live;
         }
 
-        // Fire an event so the UI and the 3D environment update together
+        // Fire events so UI and 3D environment update together
         public event Action<WeatherSnapshot> WeatherUpdated;
+        public event Action<string> RequestFailed;
+        public event Action<bool> LoadingChanged;
 
         public void Request(float latitude, float longitude)
         {
@@ -29,6 +31,8 @@ namespace WeatherApp
 
         private IEnumerator Run(float latitude, float longitude)
         {
+            LoadingChanged?.Invoke(true);
+
             WeatherSnapshot snapshot = null;
             string error = null;
             yield return provider.Fetch(latitude, longitude, (s, err) =>
@@ -38,14 +42,19 @@ namespace WeatherApp
             });
 
             running = null;
+            LoadingChanged?.Invoke(false);
 
             if (!string.IsNullOrEmpty(error))
             {
-                Debug.LogWarning("Weather request failed: " + error);
+                RequestFailed?.Invoke(error);
                 yield break;
             }
 
-            if (snapshot == null) yield break;
+            if (snapshot == null)
+            {
+                RequestFailed?.Invoke("The request was cancelled.");
+                yield break;
+            }
 
             WeatherUpdated?.Invoke(snapshot);
         }
