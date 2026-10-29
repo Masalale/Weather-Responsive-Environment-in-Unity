@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Globalization;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace WeatherApp
 {
@@ -11,6 +13,10 @@ namespace WeatherApp
         [Header("Locations")] [SerializeField] private List<LocationPreset> locations = new();
 
         [Header("Controls")] [SerializeField] private TMP_Dropdown locationDropdown;
+
+        [SerializeField] private TMP_InputField latitudeInput;
+        [SerializeField] private TMP_InputField longitudeInput;
+        [SerializeField] private Button getWeatherButton;
 
         [Header("Readout")] [SerializeField] private TMP_Text locationText;
 
@@ -38,6 +44,7 @@ namespace WeatherApp
             if (locations.Count > 0)
             {
                 locationDropdown.value = 0;
+                SetInputs(locations[0]);
                 controller.Request(locations[0].Latitude, locations[0].Longitude);
             }
         }
@@ -52,7 +59,43 @@ namespace WeatherApp
         {
             if (index < 0 || index >= locations.Count) return;
 
+            SetInputs(locations[index]);
             controller.Request(locations[index].Latitude, locations[index].Longitude);
+        }
+
+        // Hooked up to the buttons in the Inspector
+        public void OnGetWeather()
+        {
+            if (!TryRead(latitudeInput.text, -90f, 90f, "Latitude", out var latitude)) return;
+            if (!TryRead(longitudeInput.text, -180f, 180f, "Longitude", out var longitude)) return;
+
+            controller.Request(latitude, longitude);
+        }
+
+        // Check that lat is -90 to 90 and lon is -180 to 180 before sending
+        private bool TryRead(string text, float min, float max, string label, out float value)
+        {
+            value = 0f;
+
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                SetStatus(label + " is required.", errorColour);
+                return false;
+            }
+
+            if (!float.TryParse(text.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out value))
+            {
+                SetStatus(label + " must be a number.", errorColour);
+                return false;
+            }
+
+            if (value < min || value > max)
+            {
+                SetStatus($"{label} must be between {min} and {max}.", errorColour);
+                return false;
+            }
+
+            return true;
         }
 
         private void OnWeatherUpdated(WeatherSnapshot snapshot)
@@ -70,6 +113,12 @@ namespace WeatherApp
         private void OnRequestFailed(string message)
         {
             SetStatus(message, errorColour);
+        }
+
+        private void SetInputs(LocationPreset location)
+        {
+            latitudeInput.text = location.Latitude.ToString("F2", CultureInfo.InvariantCulture);
+            longitudeInput.text = location.Longitude.ToString("F2", CultureInfo.InvariantCulture);
         }
 
         private void SetStatus(string message, Color colour)
