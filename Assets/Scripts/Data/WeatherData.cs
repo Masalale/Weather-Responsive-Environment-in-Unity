@@ -3,6 +3,20 @@ using UnityEngine;
 
 namespace WeatherApp
 {
+    // One entry in the location dropdown
+    [Serializable]
+    public class LocationPreset
+    {
+        public string Name;
+        public float Latitude;
+        public float Longitude;
+
+        public override string ToString()
+        {
+            return Name;
+        }
+    }
+
     public enum WeatherCategory
     {
         Clear,

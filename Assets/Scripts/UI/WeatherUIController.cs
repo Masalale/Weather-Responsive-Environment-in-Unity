@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -6,6 +7,10 @@ namespace WeatherApp
     public class WeatherUIController : MonoBehaviour
     {
         [SerializeField] private WeatherController controller;
+
+        [Header("Locations")] [SerializeField] private List<LocationPreset> locations = new();
+
+        [Header("Controls")] [SerializeField] private TMP_Dropdown locationDropdown;
 
         [Header("Readout")] [SerializeField] private TMP_Text locationText;
 
@@ -23,14 +28,31 @@ namespace WeatherApp
 
         private void Start()
         {
+            foreach (var location in locations)
+                locationDropdown.options.Add(new TMP_Dropdown.OptionData(location.Name));
+            locationDropdown.RefreshShownValue();
+
             controller.WeatherUpdated += OnWeatherUpdated;
             controller.RequestFailed += OnRequestFailed;
+
+            if (locations.Count > 0)
+            {
+                locationDropdown.value = 0;
+                controller.Request(locations[0].Latitude, locations[0].Longitude);
+            }
         }
 
         private void OnDestroy()
         {
             controller.WeatherUpdated -= OnWeatherUpdated;
             controller.RequestFailed -= OnRequestFailed;
+        }
+
+        public void OnLocationSelected(int index)
+        {
+            if (index < 0 || index >= locations.Count) return;
+
+            controller.Request(locations[index].Latitude, locations[index].Longitude);
         }
 
         private void OnWeatherUpdated(WeatherSnapshot snapshot)
