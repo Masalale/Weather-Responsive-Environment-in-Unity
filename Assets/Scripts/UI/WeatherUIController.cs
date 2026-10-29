@@ -17,6 +17,7 @@ namespace WeatherApp
         [SerializeField] private TMP_InputField latitudeInput;
         [SerializeField] private TMP_InputField longitudeInput;
         [SerializeField] private Button getWeatherButton;
+        [SerializeField] private Button refreshButton;
 
         [Header("Readout")] [SerializeField] private TMP_Text locationText;
 
@@ -26,6 +27,7 @@ namespace WeatherApp
         [SerializeField] private TMP_Text windText;
         [SerializeField] private TMP_Text timeOfDayText;
         [SerializeField] private TMP_Text statusText;
+        [SerializeField] private GameObject loadingIndicator;
 
         [Header("Status Colours")] [SerializeField]
         private Color successColour = new(0.6f, 0.9f, 0.65f);
@@ -40,6 +42,7 @@ namespace WeatherApp
 
             controller.WeatherUpdated += OnWeatherUpdated;
             controller.RequestFailed += OnRequestFailed;
+            controller.LoadingChanged += OnLoadingChanged;
 
             if (locations.Count > 0)
             {
@@ -53,6 +56,7 @@ namespace WeatherApp
         {
             controller.WeatherUpdated -= OnWeatherUpdated;
             controller.RequestFailed -= OnRequestFailed;
+            controller.LoadingChanged -= OnLoadingChanged;
         }
 
         public void OnLocationSelected(int index)
@@ -113,6 +117,13 @@ namespace WeatherApp
         private void OnRequestFailed(string message)
         {
             SetStatus(message, errorColour);
+        }
+
+        private void OnLoadingChanged(bool isLoading)
+        {
+            loadingIndicator.SetActive(isLoading);
+            getWeatherButton.interactable = !isLoading;
+            refreshButton.interactable = !isLoading;
         }
 
         private void SetInputs(LocationPreset location)

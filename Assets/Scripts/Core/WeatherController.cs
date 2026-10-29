@@ -6,6 +6,10 @@ namespace WeatherApp
 {
     public class WeatherController : MonoBehaviour
     {
+        private bool hasQuery;
+        private float lastLatitude;
+        private float lastLongitude;
+
         private OpenWeatherService live;
         private IWeatherProvider provider;
         private Coroutine running;
@@ -25,8 +29,17 @@ namespace WeatherApp
 
         public void Request(float latitude, float longitude)
         {
+            lastLatitude = latitude;
+            lastLongitude = longitude;
+            hasQuery = true;
+
             if (running != null) StopCoroutine(running);
             running = StartCoroutine(Run(latitude, longitude));
+        }
+
+        public void Refresh()
+        {
+            if (hasQuery) Request(lastLatitude, lastLongitude);
         }
 
         private IEnumerator Run(float latitude, float longitude)
