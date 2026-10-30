@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 
 namespace WeatherApp
@@ -27,7 +28,7 @@ namespace WeatherApp
         public bool Clouds;
     }
 
-    // Picks one of the eight looks and applies the sky, sun, fog and precipitation
+    // Picks one of the eight looks and smoothly transitions skybox, sun, fog and particles
     public class EnvironmentController : MonoBehaviour
     {
         [SerializeField] private WeatherController controller;
@@ -36,6 +37,9 @@ namespace WeatherApp
         [SerializeField] private ParticleSystem rainSystem;
         [SerializeField] private ParticleSystem snowSystem;
         [SerializeField] private ParticleSystem cloudSystem;
+
+        [Header("Transition")] [SerializeField] [Range(0.5f, 4f)]
+        private float transitionDuration = 1.5f;
 
         // Presets for all 8 weather looks (day and night)
         [Header("Clear")] [SerializeField] private EnvironmentState clearDay = new();
@@ -55,6 +59,7 @@ namespace WeatherApp
         [SerializeField] private EnvironmentState snowNight = new();
 
         private Material skybox;
+        private Coroutine transitionRoutine;
 
         private void Awake()
         {
@@ -73,6 +78,12 @@ namespace WeatherApp
         private void OnDisable()
         {
             if (controller != null) controller.WeatherUpdated -= Apply;
+
+            if (transitionRoutine != null)
+            {
+                StopCoroutine(transitionRoutine);
+                transitionRoutine = null;
+            }
         }
 
         private void OnDestroy()
@@ -84,28 +95,66 @@ namespace WeatherApp
         {
             var target = Pick(snapshot);
 
+            if (transitionRoutine != null) StopCoroutine(transitionRoutine);
+            transitionRoutine = StartCoroutine(TransitionTo(target));
+        }
+
+        // Smoothly fade the sky, lights and fog over 1.5s
+        private IEnumerator TransitionTo(EnvironmentState target)
+        {
             // Toggle particle systems
             SetParticles(rainSystem, target.Rain);
             SetParticles(snowSystem, target.Snow);
             SetParticles(cloudSystem, target.Clouds);
 
-            if (skybox != null)
+            // Capture current values for smooth interpolation
+            var fromSkyTop = skybox != null ? skybox.GetColor("_TopColor") : target.SkyTop;
+            var fromSkyHorizon = skybox != null ? skybox.GetColor("_HorizonColor") : target.SkyHorizon;
+            var fromSkyGround = skybox != null ? skybox.GetColor("_GroundColor") : target.SkyGround;
+
+            var fromLight = sunLight != null ? sunLight.color : target.LightColour;
+            var fromIntensity = sunLight != null ? sunLight.intensity : target.LightIntensity;
+            var fromRot = sunLight != null ? sunLight.transform.eulerAngles : target.LightRotation;
+
+            var fromAmbient = RenderSettings.ambientLight;
+            var fromFog = RenderSettings.fogColor;
+            var fromDensity = RenderSettings.fogDensity;
+
+            var elapsed = 0f;
+            while (elapsed < transitionDuration)
             {
-                skybox.SetColor("_TopColor", target.SkyTop);
-                skybox.SetColor("_HorizonColor", target.SkyHorizon);
-                skybox.SetColor("_GroundColor", target.SkyGround);
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / transitionDuration);
+
+                // Fade skybox
+                if (skybox != null)
+                {
+                    skybox.SetColor("_TopColor", Color.Lerp(fromSkyTop, target.SkyTop, t));
+                    skybox.SetColor("_HorizonColor", Color.Lerp(fromSkyHorizon, target.SkyHorizon, t));
+                    skybox.SetColor("_GroundColor", Color.Lerp(fromSkyGround, target.SkyGround, t));
+                }
+
+                // Fade directional light
+                if (sunLight != null)
+                {
+                    sunLight.color = Color.Lerp(fromLight, target.LightColour, t);
+                    sunLight.intensity = Mathf.Lerp(fromIntensity, target.LightIntensity, t);
+                    sunLight.transform.rotation = Quaternion.Euler(
+                        Mathf.LerpAngle(fromRot.x, target.LightRotation.x, t),
+                        Mathf.LerpAngle(fromRot.y, target.LightRotation.y, t),
+                        0f
+                    );
+                }
+
+                // Fade ambient & fog
+                RenderSettings.ambientLight = Color.Lerp(fromAmbient, target.AmbientColour, t);
+                RenderSettings.fogColor = Color.Lerp(fromFog, target.FogColour, t);
+                RenderSettings.fogDensity = Mathf.Lerp(fromDensity, target.FogDensity, t);
+
+                yield return null;
             }
 
-            if (sunLight != null)
-            {
-                sunLight.color = target.LightColour;
-                sunLight.intensity = target.LightIntensity;
-                sunLight.transform.rotation = Quaternion.Euler(target.LightRotation);
-            }
-
-            RenderSettings.ambientLight = target.AmbientColour;
-            RenderSettings.fogColor = target.FogColour;
-            RenderSettings.fogDensity = target.FogDensity;
+            transitionRoutine = null;
         }
 
         private EnvironmentState Pick(WeatherSnapshot snapshot)
