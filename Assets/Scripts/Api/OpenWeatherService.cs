@@ -99,4 +99,38 @@ namespace WeatherApp
             public string apiKey;
         }
     }
+
+    // Sample provider using bundled JSON files for test mode
+    public class SampleWeatherProvider : IWeatherProvider
+    {
+        private readonly TextAsset[] payloads;
+        public int Index;
+
+        public SampleWeatherProvider(TextAsset[] payloads)
+        {
+            this.payloads = payloads;
+        }
+
+        public string Label => "Sample Data";
+
+        public IEnumerator Fetch(float latitude, float longitude, Action<WeatherSnapshot, string> onDone)
+        {
+            yield return new WaitForSeconds(0.4f);
+
+            if (payloads == null || Index < 0 || Index >= payloads.Length || payloads[Index] == null)
+            {
+                onDone(null, "No sample data assigned to this scenario.");
+                yield break;
+            }
+
+            var snapshot = WeatherJsonParser.Parse(payloads[Index].text, latitude, longitude, out var error);
+            if (snapshot == null)
+            {
+                onDone(null, error);
+                yield break;
+            }
+
+            onDone(snapshot, null);
+        }
+    }
 }

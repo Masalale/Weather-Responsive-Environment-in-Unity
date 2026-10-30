@@ -19,6 +19,11 @@ namespace WeatherApp
         [SerializeField] private Button getWeatherButton;
         [SerializeField] private Button refreshButton;
 
+        [Header("Test Mode")] [SerializeField] private Toggle testModeToggle;
+
+        [SerializeField] private TMP_Dropdown sampleDropdown;
+        [SerializeField] private GameObject testModeBanner;
+
         [Header("Readout")] [SerializeField] private TMP_Text locationText;
 
         [SerializeField] private TMP_Text descriptionText;
@@ -33,6 +38,7 @@ namespace WeatherApp
         private Color successColour = new(0.6f, 0.9f, 0.65f);
 
         [SerializeField] private Color errorColour = new(1f, 0.5f, 0.45f);
+        [SerializeField] private Color infoColour = new(1f, 0.85f, 0.45f);
 
         private void Start()
         {
@@ -40,9 +46,15 @@ namespace WeatherApp
                 locationDropdown.options.Add(new TMP_Dropdown.OptionData(location.Name));
             locationDropdown.RefreshShownValue();
 
+            foreach (var name in controller.SampleNames) sampleDropdown.options.Add(new TMP_Dropdown.OptionData(name));
+            sampleDropdown.RefreshShownValue();
+
             controller.WeatherUpdated += OnWeatherUpdated;
             controller.RequestFailed += OnRequestFailed;
             controller.LoadingChanged += OnLoadingChanged;
+
+            sampleDropdown.interactable = false;
+            testModeBanner.SetActive(false);
 
             if (locations.Count > 0)
             {
@@ -102,6 +114,20 @@ namespace WeatherApp
             return true;
         }
 
+        public void OnTestModeChanged(bool useSamples)
+        {
+            sampleDropdown.interactable = useSamples;
+            locationDropdown.interactable = !useSamples;
+            latitudeInput.interactable = !useSamples;
+            longitudeInput.interactable = !useSamples;
+            getWeatherButton.interactable = !useSamples;
+            testModeBanner.SetActive(useSamples);
+
+            SetStatus(useSamples ? "Test mode: bundled sample data." : "Live weather.", infoColour);
+
+            controller.UseSamples(useSamples);
+        }
+
         private void OnWeatherUpdated(WeatherSnapshot snapshot)
         {
             locationText.text = snapshot.DisplayLocation;
@@ -122,7 +148,7 @@ namespace WeatherApp
         private void OnLoadingChanged(bool isLoading)
         {
             loadingIndicator.SetActive(isLoading);
-            getWeatherButton.interactable = !isLoading;
+            getWeatherButton.interactable = !isLoading && !testModeToggle.isOn;
             refreshButton.interactable = !isLoading;
         }
 

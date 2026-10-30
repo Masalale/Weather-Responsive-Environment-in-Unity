@@ -6,6 +6,9 @@ namespace WeatherApp
 {
     public class WeatherController : MonoBehaviour
     {
+        [Tooltip("Bundled JSON files used by test mode. Order sets the dropdown order.")] [SerializeField]
+        private TextAsset[] samplePayloads;
+
         private bool hasQuery;
         private float lastLatitude;
         private float lastLongitude;
@@ -13,19 +16,45 @@ namespace WeatherApp
         private OpenWeatherService live;
         private IWeatherProvider provider;
         private Coroutine running;
+        private SampleWeatherProvider sample;
 
+        public bool UsingSamples { get; private set; }
         public string SourceLabel => provider.Label;
+        public string[] SampleNames { get; private set; }
 
         private void Awake()
         {
+            if (samplePayloads == null) samplePayloads = new TextAsset[0];
+
             live = new OpenWeatherService();
+            sample = new SampleWeatherProvider(samplePayloads);
             provider = live;
+
+            SampleNames = new string[samplePayloads.Length];
+            for (var i = 0; i < samplePayloads.Length; i++)
+                SampleNames[i] = samplePayloads[i] != null ? samplePayloads[i].name : "(missing)";
         }
 
         // Fire events so UI and 3D environment update together
         public event Action<WeatherSnapshot> WeatherUpdated;
         public event Action<string> RequestFailed;
         public event Action<bool> LoadingChanged;
+
+        // Switch between live API and offline test mode
+        public void UseSamples(bool useSamples)
+        {
+            UsingSamples = useSamples;
+            provider = useSamples ? sample : live;
+
+            if (hasQuery) Request(lastLatitude, lastLongitude);
+        }
+
+        public void SelectSample(int index)
+        {
+            sample.Index = index;
+
+            if (UsingSamples && hasQuery) Request(lastLatitude, lastLongitude);
+        }
 
         public void Request(float latitude, float longitude)
         {
