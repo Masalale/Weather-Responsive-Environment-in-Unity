@@ -21,14 +21,21 @@ namespace WeatherApp
 
         [Range(0f, 0.05f)] [Tooltip("Higher values close the scene in faster.")]
         public float FogDensity;
+
+        public bool Rain;
+        public bool Snow;
+        public bool Clouds;
     }
 
-    // Picks one of the eight looks and applies the sky, sun and fog
+    // Picks one of the eight looks and applies the sky, sun, fog and precipitation
     public class EnvironmentController : MonoBehaviour
     {
         [SerializeField] private WeatherController controller;
         [SerializeField] private Light sunLight;
         [SerializeField] private Material skyboxSource;
+        [SerializeField] private ParticleSystem rainSystem;
+        [SerializeField] private ParticleSystem snowSystem;
+        [SerializeField] private ParticleSystem cloudSystem;
 
         // Presets for all 8 weather looks (day and night)
         [Header("Clear")] [SerializeField] private EnvironmentState clearDay = new();
@@ -77,6 +84,11 @@ namespace WeatherApp
         {
             var target = Pick(snapshot);
 
+            // Toggle particle systems
+            SetParticles(rainSystem, target.Rain);
+            SetParticles(snowSystem, target.Snow);
+            SetParticles(cloudSystem, target.Clouds);
+
             if (skybox != null)
             {
                 skybox.SetColor("_TopColor", target.SkyTop);
@@ -105,6 +117,14 @@ namespace WeatherApp
                 case WeatherCategory.Snow: return snapshot.IsDaytime ? snowDay : snowNight;
                 default: return snapshot.IsDaytime ? cloudyDay : cloudyNight;
             }
+        }
+
+        private static void SetParticles(ParticleSystem system, bool active)
+        {
+            if (system == null) return;
+
+            if (active && !system.isPlaying) system.Play();
+            else if (!active && system.isPlaying) system.Stop();
         }
     }
 }
