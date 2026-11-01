@@ -158,3 +158,4 @@ Assets/StreamingAssets/secrets.json.meta
 
 # IDE settings
 /.idea/
+/.vscode/
